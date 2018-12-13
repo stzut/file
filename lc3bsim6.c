@@ -931,7 +931,7 @@ void SR_stage() {
 int v_mem_ld_cc,
 v_mem_ld_reg,
 mem_pcmux = 0,
-target_pc,
+target_pc = PS.MEM_ADDRESS,
 trap_pc,
 mem_dcache_r;
 void MEM_stage() {
@@ -1190,6 +1190,10 @@ void DE_stage() {
 
     if (v_sr_ld_reg == 1)
       REGS[PS.SR_DRID] = sr_reg_data;
+
+    int old_n = N;
+    int old_z = Z;
+    int old_p = P;
     if (v_sr_ld_cc == 1) 
     {
       N = sr_n;
@@ -1231,16 +1235,16 @@ void DE_stage() {
     NEW_PS.AGEX_IR = PS.DE_IR;
     NEW_PS.AGEX_SR1 = REGS[sr1];
     NEW_PS.AGEX_SR2 = REGS[sr2];
-    NEW_PS.AGEX_CC = (N << 2) + (Z << 1) + P;
+    NEW_PS.AGEX_CC = (old_n << 2) + (old_z << 1) + old_p;
     if (Get_DRMUX(DE_CS) == 0)
       NEW_PS.AGEX_DRID = (PS.DE_IR >> 9) % 8;
     else
       NEW_PS.AGEX_DRID = 7;
 
     if (dep_stall == 0 & PS.DE_V == 1)
-      PS.AGEX_V = 1;
+      NEW_PS.AGEX_V = 1;
     else 
-      PS.AGEX_V = 0;
+      NEW_PS.AGEX_V = 0;
 
     /* The code below propagates the control signals from the CONTROL
        STORE to the AGEX.CS latch. */
@@ -1277,6 +1281,8 @@ void FETCH_stage() {
   int LD_DE;
   if (dep_stall == 0 & mem_stall == 0)
     LD_DE = 1;
+  else
+    LD_DE = 0;
 
   if (LD_DE)
   {
