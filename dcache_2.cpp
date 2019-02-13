@@ -93,7 +93,17 @@ namespace DL1
     typedef CACHE_ROUND_ROBIN(max_sets, max_associativity, allocation) CACHE;
 }
 
+namespace DL2
+{
+    const UINT32 max_sets = KILO; // cacheSize / (lineSize * associativity);
+    const UINT32 max_associativity = 256; // associativity;
+    const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
+
+    typedef CACHE_ROUND_ROBIN(max_sets, max_associativity, allocation) CACHE;
+}
+
 DL1::CACHE* dl1 = NULL;
+DL2::CACHE* dl2 = NULL;
 
 typedef enum
 {
@@ -110,6 +120,7 @@ typedef  COUNTER_ARRAY<UINT64, COUNTER_NUM> COUNTER_HIT_MISS;
 // holds the counters with misses and hits
 // conceptually this is an array indexed by instruction address
 COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile;
+COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile2;
 
 /* ===================================================================== */
 
@@ -120,6 +131,15 @@ VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId)
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
     profile[instId][counter]++;
+
+    // second level D-cache
+    if (counter){
+        const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+
+        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
+        profile2[instId][counter2]++;
+    }
+
 }
 
 /* ===================================================================== */
@@ -131,6 +151,13 @@ VOID StoreMulti(ADDRINT addr, UINT32 size, UINT32 instId)
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
     profile[instId][counter]++;
+
+    if (counter){
+        const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
+
+        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
+        profile2[instId][counter2]++;
+    }
 }
 
 /* ===================================================================== */
@@ -143,6 +170,14 @@ VOID LoadSingle(ADDRINT addr, UINT32 instId)
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
     profile[instId][counter]++;
+
+    if(counter){
+        const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
+
+        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
+        profile2[instId][counter2]++;
+    }
+
 }
 /* ===================================================================== */
 
@@ -154,6 +189,12 @@ VOID StoreSingle(ADDRINT addr, UINT32 instId)
 
     const COUNTER counter = dl1Hit ? COUNTER_HIT : COUNTER_MISS;
     profile[instId][counter]++;
+    if (counter){
+        const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
+
+        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
+        profile2[instId][counter2]++;
+    }
 }
 
 /* ===================================================================== */
@@ -161,6 +202,7 @@ VOID StoreSingle(ADDRINT addr, UINT32 instId)
 VOID LoadMultiFast(ADDRINT addr, UINT32 size)
 {
     dl1->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
+
 }
 
 /* ===================================================================== */
@@ -306,7 +348,7 @@ VOID Fini(int code, VOID * v)
             
     outFile <<
         "#\n"
-        "# DCACHE stats\n"
+        "# DCACHE L1 stats\n"
         "#\n";
     
     outFile << dl1->StatsLong("# ", CACHE_BASE::CACHE_TYPE_DCACHE);
@@ -318,6 +360,21 @@ VOID Fini(int code, VOID * v)
             "#\n";
         
         outFile << profile.StringLong();
+}
+    outFile <<
+        "#\n"
+        "# DCACHE L2 stats\n"
+        "#\n";
+    
+    outFile << dl2->StatsLong("# ", CACHE_BASE::CACHE_TYPE_DCACHE);
+
+    if( KnobTrackLoads || KnobTrackStores ) {
+        outFile <<
+            "#\n"
+            "# LOAD stats\n"
+            "#\n";
+        
+        outFile << profile2.StringLong();
     }
     outFile.close();
 }
@@ -345,11 +402,19 @@ int main(int argc, char *argv[])
     profile.SetKeyName("iaddr          ");
     profile.SetCounterName("dcache:miss        dcache:hit");
 
+    dl2 = new DL2::CACHE("L2 Data Cache", 
+                         KnobCacheSize.Value() * KILO,
+                         KnobLineSize.Value(),
+                         KnobAssociativity.Value());
+    profile2.SetKeyName("iaddr          ");
+    profile2.SetCounterName("dcache:miss        dcache:hit");
+
     COUNTER_HIT_MISS threshold;
 
     threshold[COUNTER_HIT] = KnobThresholdHit.Value();
     threshold[COUNTER_MISS] = KnobThresholdMiss.Value();
     
+    profile.SetThreshold( threshold );
     profile.SetThreshold( threshold );
     
     INS_AddInstrumentFunction(Instruction, 0);
