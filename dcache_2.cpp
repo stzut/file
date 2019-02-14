@@ -414,9 +414,9 @@ int main(int argc, char *argv[])
     profile.SetCounterName("dcache:miss        dcache:hit");
 
     dl2 = new DL2::CACHE2("L2 Data Cache", 
-                         KnobCacheSize.Value() * KILO,
-                         KnobLineSize.Value(),
-                         KnobAssociativity.Value());
+                         KnobCacheSize2.Value() * KILO,
+                         KnobLineSize2.Value(),
+                         KnobAssociativity2.Value());
     profile2.SetKeyName("iaddr          ");
     profile2.SetCounterName("dcache:miss        dcache:hit");
 
