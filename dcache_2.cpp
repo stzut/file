@@ -405,7 +405,7 @@ int main(int argc, char *argv[])
 
     outFile.open(KnobOutputFile.Value().c_str());
 
-    dl1 = new DL1::CACHE("L1 Data Cache", 
+    dl1 = new DL1::CACHE1("L1 Data Cache", 
                          KnobCacheSize.Value() * KILO,
                          KnobLineSize.Value(),
                          KnobAssociativity.Value());
@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
     profile.SetKeyName("iaddr          ");
     profile.SetCounterName("dcache:miss        dcache:hit");
 
-    dl2 = new DL2::CACHE("L2 Data Cache", 
+    dl2 = new DL2::CACHE2("L2 Data Cache", 
                          KnobCacheSize.Value() * KILO,
                          KnobLineSize.Value(),
                          KnobAssociativity.Value());
@@ -433,7 +433,7 @@ int main(int argc, char *argv[])
     profile.SetThreshold( threshold );
 
     profile2.SetThreshold( threshold2 );
-    profile.2SetThreshold( threshold2 );
+    profile2.SetThreshold( threshold2 );
     
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);
