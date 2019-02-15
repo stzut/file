@@ -65,16 +65,6 @@ KNOB<UINT32> KnobLineSize(KNOB_MODE_WRITEONCE, "pintool",
 KNOB<UINT32> KnobAssociativity(KNOB_MODE_WRITEONCE, "pintool",
     "a","4", "cache associativity (1 for direct mapped)");
 
-KNOB<UINT32> KnobThresholdHit2(KNOB_MODE_WRITEONCE , "pintool",
-   "rh", "100", "only report memops with hit count above threshold");
-KNOB<UINT32> KnobThresholdMiss2(KNOB_MODE_WRITEONCE, "pintool",
-   "rm","100", "only report memops with miss count above threshold");
-KNOB<UINT32> KnobCacheSize2(KNOB_MODE_WRITEONCE, "pintool",
-    "c","32", "cache size in kilobytes");
-KNOB<UINT32> KnobLineSize2(KNOB_MODE_WRITEONCE, "pintool",
-    "b","32", "cache block size in bytes");
-KNOB<UINT32> KnobAssociativity2(KNOB_MODE_WRITEONCE, "pintool",
-    "a","4", "cache associativity (1 for direct mapped)");
 
 /* ===================================================================== */
 /* Print Help Message                                                    */
@@ -101,7 +91,7 @@ namespace DL1
     const UINT32 max_associativity = 256; // associativity;
     const CACHE_ALLOC::STORE_ALLOCATION allocation = CACHE_ALLOC::STORE_ALLOCATE;
 
-    typedef CACHE_ROUND_ROBIN(max_sets, max_associativity, allocation) CACHE;
+    typedef CACHE_ROUND_ROBIN(max_sets, max_associativity, allocation) CACHE1;
 }
 
 namespace DL2
@@ -113,7 +103,7 @@ namespace DL2
     typedef CACHE_ROUND_ROBIN(max_sets, max_associativity, allocation) CACHE2;
 }
 
-DL1::CACHE* dl1 = NULL;
+DL1::CACHE1* dl1 = NULL;
 DL2::CACHE2* dl2 = NULL;
 
 typedef enum
@@ -131,7 +121,6 @@ typedef  COUNTER_ARRAY<UINT64, COUNTER_NUM> COUNTER_HIT_MISS;
 // holds the counters with misses and hits
 // conceptually this is an array indexed by instruction address
 COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile;
-COMPRESSOR_COUNTER<ADDRINT, UINT32, COUNTER_HIT_MISS> profile2;
 
 /* ===================================================================== */
 
@@ -147,8 +136,8 @@ VOID LoadMulti(ADDRINT addr, UINT32 size, UINT32 instId)
     if (!counter){
         const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-        profile2[instId][counter2]++;
+       // const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
+
     }
 
 }
@@ -166,8 +155,7 @@ VOID StoreMulti(ADDRINT addr, UINT32 size, UINT32 instId)
     if (!counter){
         const BOOL dl2Hit = dl2->Access(addr, size, CACHE_BASE::ACCESS_TYPE_STORE);
 
-        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-        profile2[instId][counter2]++;
+        //const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
     }
 }
 
@@ -185,8 +173,7 @@ VOID LoadSingle(ADDRINT addr, UINT32 instId)
     if(!counter){
         const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_LOAD);
 
-        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-        profile2[instId][counter2]++;
+        //const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
     }
 
 }
@@ -203,8 +190,7 @@ VOID StoreSingle(ADDRINT addr, UINT32 instId)
     if (!counter){
         const BOOL dl2Hit = dl2->AccessSingleLine(addr, CACHE_BASE::ACCESS_TYPE_STORE);
 
-        const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
-        profile2[instId][counter2]++;
+        //const COUNTER counter2 = dl2Hit ? COUNTER_HIT : COUNTER_MISS;
     }
 }
 
@@ -405,35 +391,26 @@ int main(int argc, char *argv[])
 
     outFile.open(KnobOutputFile.Value().c_str());
 
-    dl1 = new DL1::CACHE("L1 Data Cache", 
-                         KnobCacheSize.Value() * KILO,
-                         KnobLineSize.Value(),
-                         KnobAssociativity.Value());
+    dl1 = new DL1::CACHE1("L1 Data Cache", 
+                         32 * KILO,
+                         32,
+                         4);
     
     profile.SetKeyName("iaddr          ");
     profile.SetCounterName("dcache:miss        dcache:hit");
 
     dl2 = new DL2::CACHE2("L2 Data Cache", 
-                         KnobCacheSize2.Value() * KILO,
-                         KnobLineSize2.Value(),
-                         KnobAssociativity2.Value());
-    profile2.SetKeyName("iaddr          ");
-    profile2.SetCounterName("dcache:miss        dcache:hit");
+                         2048 * KILO,
+                         64
+                         16);
 
     COUNTER_HIT_MISS threshold;
-    COUNTER_HIT_MISS threshold2;
 
     threshold[COUNTER_HIT] = KnobThresholdHit.Value();
     threshold[COUNTER_MISS] = KnobThresholdMiss.Value();
-
-    threshold2[COUNTER_HIT] = KnobThresholdHit2.Value();
-    threshold2[COUNTER_MISS] = KnobThresholdMiss2.Value();
     
     profile.SetThreshold( threshold );
     profile.SetThreshold( threshold );
-
-    profile2.SetThreshold( threshold2 );
-    profile2.SetThreshold( threshold2 );
     
     INS_AddInstrumentFunction(Instruction, 0);
     PIN_AddFiniFunction(Fini, 0);
