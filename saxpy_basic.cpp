@@ -70,10 +70,10 @@ saxpyCuda(long total_elems, float alpha, float* xarray, float* yarray, float* re
     //
     // TODO: copy input arrays to the GPU using cudaMemcpy
     //
-    double start_host2dev_Time = CycleTimer:currentSeconds();
+    double start_host2dev_Time = CycleTimer::currentSeconds();
     cudaMemcpy(device_x, xarray, total_elems*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(device_y, yarray, total_elems*sizeof(float), cudaMemcpyHostToDevice);
-    double end_host2dev_Time = CycleTimer:currentSeconds();
+    double end_host2dev_Time = CycleTimer::currentSeconds();
     double timeHost2dev = end_host2dev_Time - start_host2dev_Time;
     //
     // TODO: insert time here to begin timing only the kernel
@@ -103,9 +103,9 @@ saxpyCuda(long total_elems, float alpha, float* xarray, float* yarray, float* re
     //
     // TODO: copy result from GPU using cudaMemcpy
     //
-    double start_dev2host_Time = CycleTimer:currentSeconds();
+    double start_dev2host_Time = CycleTimer::currentSeconds();
     cudaMemcpy(resultarray, device_result, total_elems * sizeof(float), cudaMemcpyDeviceToHost);
-    double end_dev2host_Time = CycleTimer:currentSeconds();
+    double end_dev2host_Time = CycleTimer::currentSeconds();
     double timedev2Host = end_dev2host_Time - start_dev2host_Time;
     // end timing after result has been copied back into host memory.
     // The time elapsed between startTime and endTime is the total
